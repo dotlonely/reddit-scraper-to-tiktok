@@ -1,16 +1,16 @@
-.ENV Formatting\
+.ENV Formatting
 
------------ Reddit API ------------- \
+----------- Reddit API ------------- 
 
 'CLIENT_ID'=''\
 'CLIENT_SECRET'=''\
-'USER_AGENT'=''\
+'USER_AGENT'=''
 
---------------------------\
+--------------------------
 
 To make venv in git bash terminal --> python -m venv venv\
 Then activate venv --> source ./venv/Scripts/activate\
-Then install requirements --> pip install -r requirements.txt\
+Then install requirements --> pip install -r requirements.txt
 
 
 File Structure:\
