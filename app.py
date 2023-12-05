@@ -22,9 +22,13 @@ reddit = Reddit(client_id=CLIENT_ID, client_secret=CLIENT_SECRET, user_agent=USE
 TEMP_PATH = 'C://Users//noahe//PythonProjects//reddit-scraper//static//temp'
 OUTPUT_PATH = 'C://Users//noahe//PythonProjects//reddit-scraper//static//output'
  """
-SAVE_PATH = '/Users/alexbrady/Library/Mobile Documents/com~apple~CloudDocs/RedditScrape Repo/reddit-scraper-to-tiktok/static/downloads'
+""" SAVE_PATH = '/Users/alexbrady/Library/Mobile Documents/com~apple~CloudDocs/RedditScrape Repo/reddit-scraper-to-tiktok/static/downloads'
 TEMP_PATH = '/Users/alexbrady/Library/Mobile Documents/com~apple~CloudDocs/RedditScrape Repo/reddit-scraper-to-tiktok/static/temp'
 OUTPUT_PATH = '/Users/alexbrady/Library/Mobile Documents/com~apple~CloudDocs/RedditScrape Repo/reddit-scraper-to-tiktok/static/output'
+ """
+SAVE_PATH = os.getenv('SAVE_PATH')
+TEMP_PATH = os.getenv('TEMP_PATH')
+OUTPUT_PATH = os.getenv('OUTPUT_PATH')
 
 # Downloads youtube video to save path
 def download_youtube_video(link: str) -> None:
@@ -39,11 +43,8 @@ def download_youtube_video(link: str) -> None:
 
 def get_reddit_posts(subreddit: str):
     target = reddit.subreddit(subreddit)
-    target.display_name = "AITA for eating at the children I babysit fors house?"
     print(f'Display Name:{target.display_name}')
-    f = reddit.submission(id = '17yohi6') + target.top('month')
-    return f
-    #return target.top("month")
+    return target.top("month")
 
 
 def merge_video_audio(video_file_path: str, audio_file_path: str) -> VideoFileClip:
@@ -70,12 +71,9 @@ def place_subtitles(subtitle, fontSize=24, font='arial'):
         end_time = time_to_seconds(subtitle.end)
         duration = end_time - start_time
 
-        
-        
         text_clip = TextClip(subtitle.text, fontsize=fontSize, font=font, bg_color = 'black',size=(video_width*3/4, None), method='caption').set_start(start_time).set_duration(duration)
         subtitle_x_position = 'center'
-         
-
+        
         text_position = (subtitle_x_position)                    
         subtitleClips.append(text_clip.set_position(text_position))
 
