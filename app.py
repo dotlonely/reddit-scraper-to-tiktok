@@ -17,11 +17,14 @@ CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 USER_AGENT = os.getenv('USER_AGENT')
 
 reddit = Reddit(client_id=CLIENT_ID, client_secret=CLIENT_SECRET, user_agent=USER_AGENT)
-SAVE_PATH = 'C://Users//noahe//PythonProjects//reddit-scraper//static//downloads'
+
+""" SAVE_PATH = 'C://Users//noahe//PythonProjects//reddit-scraper//static//downloads'
 TEMP_PATH = 'C://Users//noahe//PythonProjects//reddit-scraper//static//temp'
 OUTPUT_PATH = 'C://Users//noahe//PythonProjects//reddit-scraper//static//output'
-
-
+ """
+SAVE_PATH = '/Users/alexbrady/Library/Mobile Documents/com~apple~CloudDocs/RedditScrape Repo/reddit-scraper-to-tiktok/static/downloads'
+TEMP_PATH = '/Users/alexbrady/Library/Mobile Documents/com~apple~CloudDocs/RedditScrape Repo/reddit-scraper-to-tiktok/static/temp'
+OUTPUT_PATH = '/Users/alexbrady/Library/Mobile Documents/com~apple~CloudDocs/RedditScrape Repo/reddit-scraper-to-tiktok/static/output'
 
 # Downloads youtube video to save path
 def download_youtube_video(link: str) -> None:
@@ -36,10 +39,11 @@ def download_youtube_video(link: str) -> None:
 
 def get_reddit_posts(subreddit: str):
     target = reddit.subreddit(subreddit)
-
+    target.display_name = "AITA for eating at the children I babysit fors house?"
     print(f'Display Name:{target.display_name}')
-
-    return target.top("month")
+    f = reddit.submission(id = '17yohi6') + target.top('month')
+    return f
+    #return target.top("month")
 
 
 def merge_video_audio(video_file_path: str, audio_file_path: str) -> VideoFileClip:
@@ -57,22 +61,22 @@ def save_merged_video(video_clip: VideoFileClip, output_name: str) -> None:
 def time_to_seconds(time_obj):
     return time_obj.hours * 3600 + time_obj.minutes * 60 + time_obj.seconds + time_obj.milliseconds / 1000
 
-def place_subtitles(subtitles, videoSize, fontSize=24, font='arial'):
+def place_subtitles(subtitle, fontSize=24, font='arial'):
     
     subtitleClips = []
 
-    for subtitle in subtitles:
+    for subtitle in subtitleClips:
         start_time = time_to_seconds(subtitle.start)
         end_time = time_to_seconds(subtitle.end)
         duration = end_time - start_time
 
-        video_width, video_height = videoSize
+        
         
         text_clip = TextClip(subtitle.text, fontsize=fontSize, font=font, bg_color = 'black',size=(video_width*3/4, None), method='caption').set_start(start_time).set_duration(duration)
         subtitle_x_position = 'center'
-        subtitle_y_position = video_height* 4 / 5 
+         
 
-        text_position = (subtitle_x_position, subtitle_y_position)                    
+        text_position = (subtitle_x_position)                    
         subtitleClips.append(text_clip.set_position(text_position))
 
     return subtitleClips
