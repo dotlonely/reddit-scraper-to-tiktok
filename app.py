@@ -53,31 +53,13 @@ def merge_video_audio(video_file_path: str, audio_file_path: str) -> VideoFileCl
     audio_length = audio_clip.duration
     video_clip = video_clip.subclip(0, audio_length)
     return video_clip.set_audio(audio_clip)
+    
 
 
 def save_merged_video(video_clip: VideoFileClip, output_name: str) -> None:
     video_clip.write_videofile(f'{OUTPUT_PATH}/{output_name}.mp4')
     video_clip.close()
 
-def time_to_seconds(time_obj):
-    return time_obj.hours * 3600 + time_obj.minutes * 60 + time_obj.seconds + time_obj.milliseconds / 1000
-
-def place_subtitles(subtitle, fontSize=24, font='arial'):
-    
-    subtitleClips = []
-
-    for subtitle in subtitleClips:
-        start_time = time_to_seconds(subtitle.start)
-        end_time = time_to_seconds(subtitle.end)
-        duration = end_time - start_time
-
-        text_clip = TextClip(subtitle.text, fontsize=fontSize, font=font, bg_color = 'black',size=(video_width*3/4, None), method='caption').set_start(start_time).set_duration(duration)
-        subtitle_x_position = 'center'
-        
-        text_position = (subtitle_x_position)                    
-        subtitleClips.append(text_clip.set_position(text_position))
-
-    return subtitleClips
 
 def init_tts_engine() -> pyttsx3.Engine:
     engine = pyttsx3.init()
@@ -94,8 +76,9 @@ posts = get_reddit_posts('AmITheAsshole')
 for post in posts:
     if post.selftext and post.selftext != '':
         print(f'{post.title} : {post.selftext}')
-        
-        subtitles = place_subtitles((f'{post.title} : {post.selftext}'))
+        #subtitle creation
+        subtitles = []
+        subtitles.append(f'{post.title} : {post.selftext}')
 
         output_name = re.sub('[^A-Za-z0-9]+', '', {post.title}.__str__())
         engine.save_to_file(post.selftext, f'{TEMP_PATH}/{output_name}.mp3')
