@@ -1,3 +1,6 @@
+Leopard Access Key:
+https://console.picovoice.ai/
+
 .ENV Formatting
 
 ----------- Reddit API ------------- 
