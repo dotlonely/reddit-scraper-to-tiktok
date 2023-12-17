@@ -17,7 +17,10 @@ import datetime
 import tkinter as tk
 import webbrowser
 from tkinter import scrolledtext as st
+from moviepy.config import change_settings
 
+
+change_settings({"IMAGEMAGICK_BINARY": r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"})
 
 load_dotenv()
 
@@ -81,6 +84,7 @@ def init_tts_engine() -> pyttsx3.Engine:
     engine = pyttsx3.init()
     voices = engine.getProperty('voices')
     engine.setProperty('voice', voices[1].id)
+    engine.setProperty('rate', 175)
     return engine
 
 def second_to_timecode(x: float) -> str:
@@ -94,7 +98,7 @@ def second_to_timecode(x: float) -> str:
 def to_srt(
         words: Sequence[pvleopard.Leopard.Word],
         endpoint_sec: float = 1.,
-        length_limit: Optional[int] = 16) -> str:
+        length_limit: Optional[int] = 1) -> str:
     updateLogger(log.toSRT)
     def _helper(end: int, ) -> None:
         lines.append("%d" % section)
@@ -126,7 +130,7 @@ def time_to_seconds(time_obj):
     return time_obj.hours * 3600 + time_obj.minutes * 60 + time_obj.seconds + time_obj.milliseconds / 1000
 
 
-def create_subtitle_clips(subtitles, fontsize=18, font='Arial', color='white', debug = False):
+def create_subtitle_clips(subtitles, fontsize=28, font='Consolas', color='white', debug = False):
     updateLogger(log.subtitleCreate)
     subtitle_clips = []
 
@@ -145,21 +149,20 @@ def create_subtitle_clips(subtitles, fontsize=18, font='Arial', color='white', d
 
 def RedditScraperEngine(selectedSubReddit, sliderNum):
     videoCounter = 0
-    #posts = get_reddit_posts('AmITheAsshole')
     posts = get_reddit_posts(f'{selectedSubReddit}', sliderNum)
     engine = init_tts_engine()
     for post in posts:
         if post.selftext and post.selftext != '':
             videoCounter = videoCounter + 1
-            #print(f'{post.title} : {post.selftext}') #COMMENTED TO SAVE RUNTIME
             
             output_name = re.sub('[^A-Za-z0-9]+', '', {post.title}.__str__())
             engine.save_to_file(post.selftext, f'{TEMP_PATH}/{output_name}.mp3')
-            
+            engine.runAndWait()
+
             # The minecraft.mp4 is the name of a video I saved to my downloads path to use as the video base.
-            audioVideoOutput = merge_video_audio(f'{SAVE_PATH}/minecraft.mp4','/Users/alexbrady/Library/Mobile Documents/com~apple~CloudDocs/RedditScrape Repo/reddit-scraper-to-tiktok/static/downloads/AITAfor.mp3')
+            audioVideoOutput = merge_video_audio(f'{SAVE_PATH}/minecraft.mp4',f'{TEMP_PATH}/{output_name}.mp3')
             
-            transcript, words = leopard.process_file('/Users/alexbrady/Library/Mobile Documents/com~apple~CloudDocs/RedditScrape Repo/reddit-scraper-to-tiktok/static/downloads/AITAfor.mp3')
+            transcript, words = leopard.process_file(f'{TEMP_PATH}/{output_name}.mp3')
             
             with open(f'{TEMP_PATH}/{output_name}.srt', 'w') as f:
                 f.write(to_srt(words))  #CREATES SRT FROM TEXT
@@ -374,11 +377,6 @@ appMenu.add_separator()
 appMenu.add_command(label='Quit', command=window.quit)
 mainMenu.add_cascade(label='Reddit', menu=appMenu)
 window.config(menu=mainMenu)
-
-
-
-
-
 
 
 window.mainloop()

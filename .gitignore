@@ -5,3 +5,4 @@ __pycache__
 venv
 myvenv
 .DS_Store
+conf.py
