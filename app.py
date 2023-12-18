@@ -85,8 +85,6 @@ def save_merged_video(video_clip: VideoFileClip, output_name: str) -> None:
 def synthesize_text(text, output_name):
     client = texttospeech.TextToSpeechClient()
 
-    print(client.list_voices())
-
     input_text = texttospeech.SynthesisInput(text=text)
 
     # Note: the voice can also be specified by name.
@@ -109,8 +107,6 @@ def synthesize_text(text, output_name):
     with open(f"{TEMP_PATH}/{output_name}.mp3", "wb") as out:
         out.write(response.audio_content)
         print('Audio content written to file "output.mp3"')
-
-synthesize_text('Hello world', "helloworld")
 
 def second_to_timecode(x: float) -> str:
     hour, x = divmod(x, 3600)
