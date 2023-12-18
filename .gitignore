@@ -5,4 +5,8 @@ __pycache__
 venv
 myvenv
 .DS_Store
+
 tiktokcookies.txt
+
+conf.py
+

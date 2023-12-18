@@ -1,7 +1,6 @@
 from praw import Reddit
 from dotenv import load_dotenv
 import pandas as pd
-import pyttsx3
 import os
 import pyaudio
 from pytube import YouTube
@@ -19,8 +18,15 @@ import webbrowser
 from tkinter import scrolledtext as st
 from tiktok_uploader.upload import upload_video, upload_videos
 from tiktok_uploader.auth import AuthBackend
+from google.cloud import texttospeech
+from moviepy.config import change_settings
+
+
+change_settings({"IMAGEMAGICK_BINARY": r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"})
 
 load_dotenv()
+
+
 
 #https://console.picovoice.ai/   -> signup(free) get access code and save to ENV
 leopard = pvleopard.create(access_key=os.getenv('LEOPARD_ACCESS_KEY'))
@@ -75,11 +81,32 @@ def save_merged_video(video_clip: VideoFileClip, output_name: str) -> None:
     video_clip.write_videofile(f'{OUTPUT_PATH}/{output_name}.mp4')
     video_clip.close()
     
-def init_tts_engine() -> pyttsx3.Engine:
-    engine = pyttsx3.init()
-    voices = engine.getProperty('voices')
-    engine.setProperty('voice', voices[1].id)
-    return engine
+
+
+def synthesize_text(text, output_name):
+    client = texttospeech.TextToSpeechClient()
+
+    input_text = texttospeech.SynthesisInput(text=text)
+
+    # Note: the voice can also be specified by name.
+    # Names of voices can be retrieved with client.list_voices().
+    voice = texttospeech.VoiceSelectionParams(
+        language_code="en-US",
+        name="en-US-Standard-E",
+        ssml_gender=texttospeech.SsmlVoiceGender.FEMALE,
+    )
+
+    audio_config = texttospeech.AudioConfig(
+        audio_encoding=texttospeech.AudioEncoding.MP3
+    )
+
+    response = client.synthesize_speech(
+        request={"input": input_text, "voice": voice, "audio_config": audio_config}
+    )
+
+    # The response's audio_content is binary.
+    with open(f"{TEMP_PATH}/{output_name}.mp3", "wb") as out:
+        out.write(response.audio_content)
 
 def second_to_timecode(x: float) -> str:
     hour, x = divmod(x, 3600)
@@ -92,7 +119,7 @@ def second_to_timecode(x: float) -> str:
 def to_srt(
         words: Sequence[pvleopard.Leopard.Word],
         endpoint_sec: float = 1.,
-        length_limit: Optional[int] = 16) -> str:
+        length_limit: Optional[int] = 1) -> str:
     updateLogger(log.toSRT)
     def _helper(end: int, ) -> None:
         lines.append("%d" % section)
@@ -119,10 +146,17 @@ def to_srt(
     
     return '\n'.join(lines)
 
+
+def clear_temp_dir():
+    for file in os.listdir(f'{TEMP_PATH}'):
+        os.remove(f'{TEMP_PATH}/{file}')
+
+
 def time_to_seconds(time_obj):
     return time_obj.hours * 3600 + time_obj.minutes * 60 + time_obj.seconds + time_obj.milliseconds / 1000
 
-def create_subtitle_clips(subtitles, fontsize=18, font='Arial', color='white', debug = False):
+
+def create_subtitle_clips(subtitles, fontsize=28, font='Consolas', color='white', debug = False):
     updateLogger(log.subtitleCreate)
     subtitle_clips = []
 
@@ -141,21 +175,43 @@ def create_subtitle_clips(subtitles, fontsize=18, font='Arial', color='white', d
 
 def RedditScraperEngine(selectedSubReddit, sliderNum):
     videoCounter = 0
-    #posts = get_reddit_posts('AmITheAsshole')
     posts = get_reddit_posts(f'{selectedSubReddit}', sliderNum)
-    engine = init_tts_engine()
     for post in posts:
-        if post.selftext and post.selftext != '':
+        if post.selftext and post.selftext != '' and len(post.selftext) <= 5000:
             videoCounter = videoCounter + 1
-            #print(f'{post.title} : {post.selftext}') #COMMENTED TO SAVE RUNTIME
             
             output_name = re.sub('[^A-Za-z0-9]+', '', {post.title}.__str__())
-            engine.save_to_file(post.selftext, f'{TEMP_PATH}/{output_name}.mp3')
             
-            # The minecraft.mp4 is the name of a video I saved to my downloads path to use as the video base.
-            audioVideoOutput = merge_video_audio(f'{SAVE_PATH}/minecraft.mp4','/Users/alexbrady/Library/Mobile Documents/com~apple~CloudDocs/RedditScrape Repo/reddit-scraper-to-tiktok/static/downloads/AITAfor.mp3')
-            
-            transcript, words = leopard.process_file('/Users/alexbrady/Library/Mobile Documents/com~apple~CloudDocs/RedditScrape Repo/reddit-scraper-to-tiktok/static/downloads/AITAfor.mp3')
+            if f'{output_name}.mp4' not in os.listdir(f'{OUTPUT_PATH}'):
+
+                synthesize_text(post.selftext, output_name)
+
+                # The minecraft.mp4 is the name of a video I saved to my downloads path to use as the video base.
+                audioVideoOutput = merge_video_audio(f'{SAVE_PATH}/minecraft.mp4',f'{TEMP_PATH}/{output_name}.mp3')
+                
+                transcript, words = leopard.process_file(f'{TEMP_PATH}/{output_name}.mp3')
+                
+                with open(f'{TEMP_PATH}/{output_name}.srt', 'w') as f:
+                    f.write(to_srt(words))  #CREATES SRT FROM TEXT
+                
+                subtitles = pysrt.open(f'{TEMP_PATH}/{output_name}.srt') #OPENS SRT FILE FOR READING
+                subtitle_clips = create_subtitle_clips(subtitles) #FORMS MP4 WITH SUBTITLES                            
+                
+                updateLogger(log.buildingVideo)
+                subtitleFinal = CompositeVideoClip([audioVideoOutput] + subtitle_clips) #COMBINES SRT WITH MP4
+                
+                updateLogger(log.writingVideo)
+                subtitleFinal.write_videofile(f'{OUTPUT_PATH}/{output_name}.mp4') #WRITES AND SAVES TO OUTPUTPATH
+                #save_merged_video(subtitleFinal, output_name=output_name)
+                
+                updateVideoCounter(videoCounter)
+                
+                clear_temp_dir()
+
+                if (videoCounter == 1):
+                    print(f'{videoCounter} VIDEO MADE')
+                else:
+                    print(f'{videoCounter} VIDEOS MADE')
             
             with open(f'{TEMP_PATH}/{output_name}.srt', 'w') as f:
                 f.write(to_srt(words))  #CREATES SRT FROM TEXT
@@ -176,8 +232,9 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
             else:
                 print(f'{videoCounter} VIDEOS MADE')
         
+
         else:
-            print('No Post Body')
+            print('No Post Body or Post is too large.')
 
 
 #methods to take mp4 compiled videos and post to respective platforms UNUSED
@@ -367,11 +424,6 @@ appMenu.add_separator()
 appMenu.add_command(label='Quit', command=window.quit)
 mainMenu.add_cascade(label='Reddit', menu=appMenu)
 window.config(menu=mainMenu)
-
-
-
-
-
 
 
 window.mainloop()
