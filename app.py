@@ -1,7 +1,6 @@
 from praw import Reddit
 from dotenv import load_dotenv
 import pandas as pd
-import pyttsx3
 import os
 import pyaudio
 from pytube import YouTube
@@ -17,12 +16,15 @@ import datetime
 import tkinter as tk
 import webbrowser
 from tkinter import scrolledtext as st
+from google.cloud import texttospeech
 from moviepy.config import change_settings
 
 
 change_settings({"IMAGEMAGICK_BINARY": r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"})
 
 load_dotenv()
+
+
 
 #https://console.picovoice.ai/   -> signup(free) get access code and save to ENV
 leopard = pvleopard.create(access_key=os.getenv('LEOPARD_ACCESS_KEY'))
@@ -80,12 +82,35 @@ def save_merged_video(video_clip: VideoFileClip, output_name: str) -> None:
     video_clip.close()
     
 
-def init_tts_engine() -> pyttsx3.Engine:
-    engine = pyttsx3.init()
-    voices = engine.getProperty('voices')
-    engine.setProperty('voice', voices[1].id)
-    engine.setProperty('rate', 175)
-    return engine
+def synthesize_text(text, output_name):
+    client = texttospeech.TextToSpeechClient()
+
+    print(client.list_voices())
+
+    input_text = texttospeech.SynthesisInput(text=text)
+
+    # Note: the voice can also be specified by name.
+    # Names of voices can be retrieved with client.list_voices().
+    voice = texttospeech.VoiceSelectionParams(
+        language_code="en-US",
+        name="en-US-Standard-E",
+        ssml_gender=texttospeech.SsmlVoiceGender.FEMALE,
+    )
+
+    audio_config = texttospeech.AudioConfig(
+        audio_encoding=texttospeech.AudioEncoding.MP3
+    )
+
+    response = client.synthesize_speech(
+        request={"input": input_text, "voice": voice, "audio_config": audio_config}
+    )
+
+    # The response's audio_content is binary.
+    with open(f"{TEMP_PATH}/{output_name}.mp3", "wb") as out:
+        out.write(response.audio_content)
+        print('Audio content written to file "output.mp3"')
+
+synthesize_text('Hello world', "helloworld")
 
 def second_to_timecode(x: float) -> str:
     hour, x = divmod(x, 3600)
@@ -156,8 +181,10 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
             videoCounter = videoCounter + 1
             
             output_name = re.sub('[^A-Za-z0-9]+', '', {post.title}.__str__())
-            engine.save_to_file(post.selftext, f'{TEMP_PATH}/{output_name}.mp3')
-            engine.runAndWait()
+            synthesize_text(post.selftext, output_name)
+
+            #engine.save_to_file(post.selftext, f'{TEMP_PATH}/{output_name}.mp3')
+            #engine.runAndWait()
 
             # The minecraft.mp4 is the name of a video I saved to my downloads path to use as the video base.
             audioVideoOutput = merge_video_audio(f'{SAVE_PATH}/minecraft.mp4',f'{TEMP_PATH}/{output_name}.mp3')
