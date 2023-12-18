@@ -106,7 +106,6 @@ def synthesize_text(text, output_name):
     # The response's audio_content is binary.
     with open(f"{TEMP_PATH}/{output_name}.mp3", "wb") as out:
         out.write(response.audio_content)
-        print('Audio content written to file "output.mp3"')
 
 def second_to_timecode(x: float) -> str:
     hour, x = divmod(x, 3600)
@@ -146,6 +145,10 @@ def to_srt(
     
     return '\n'.join(lines)
 
+def clear_temp_dir():
+    for file in os.listdir(f'{TEMP_PATH}'):
+        os.remove(f'{TEMP_PATH}/{file}')
+
 
 def time_to_seconds(time_obj):
     return time_obj.hours * 3600 + time_obj.minutes * 60 + time_obj.seconds + time_obj.milliseconds / 1000
@@ -171,43 +174,45 @@ def create_subtitle_clips(subtitles, fontsize=28, font='Consolas', color='white'
 def RedditScraperEngine(selectedSubReddit, sliderNum):
     videoCounter = 0
     posts = get_reddit_posts(f'{selectedSubReddit}', sliderNum)
-    engine = init_tts_engine()
     for post in posts:
-        if post.selftext and post.selftext != '':
+        if post.selftext and post.selftext != '' and len(post.selftext) <= 5000:
             videoCounter = videoCounter + 1
             
             output_name = re.sub('[^A-Za-z0-9]+', '', {post.title}.__str__())
-            synthesize_text(post.selftext, output_name)
+            
+            if f'{output_name}.mp4' not in os.listdir(f'{OUTPUT_PATH}'):
 
-            #engine.save_to_file(post.selftext, f'{TEMP_PATH}/{output_name}.mp3')
-            #engine.runAndWait()
+                synthesize_text(post.selftext, output_name)
 
-            # The minecraft.mp4 is the name of a video I saved to my downloads path to use as the video base.
-            audioVideoOutput = merge_video_audio(f'{SAVE_PATH}/minecraft.mp4',f'{TEMP_PATH}/{output_name}.mp3')
+                # The minecraft.mp4 is the name of a video I saved to my downloads path to use as the video base.
+                audioVideoOutput = merge_video_audio(f'{SAVE_PATH}/minecraft.mp4',f'{TEMP_PATH}/{output_name}.mp3')
+                
+                transcript, words = leopard.process_file(f'{TEMP_PATH}/{output_name}.mp3')
+                
+                with open(f'{TEMP_PATH}/{output_name}.srt', 'w') as f:
+                    f.write(to_srt(words))  #CREATES SRT FROM TEXT
+                
+                subtitles = pysrt.open(f'{TEMP_PATH}/{output_name}.srt') #OPENS SRT FILE FOR READING
+                subtitle_clips = create_subtitle_clips(subtitles) #FORMS MP4 WITH SUBTITLES                            
+                
+                updateLogger(log.buildingVideo)
+                subtitleFinal = CompositeVideoClip([audioVideoOutput] + subtitle_clips) #COMBINES SRT WITH MP4
+                
+                updateLogger(log.writingVideo)
+                subtitleFinal.write_videofile(f'{OUTPUT_PATH}/{output_name}.mp4') #WRITES AND SAVES TO OUTPUTPATH
+                #save_merged_video(subtitleFinal, output_name=output_name)
+                
+                updateVideoCounter(videoCounter)
+                
+                clear_temp_dir()
+
+                if (videoCounter == 1):
+                    print(f'{videoCounter} VIDEO MADE')
+                else:
+                    print(f'{videoCounter} VIDEOS MADE')
             
-            transcript, words = leopard.process_file(f'{TEMP_PATH}/{output_name}.mp3')
-            
-            with open(f'{TEMP_PATH}/{output_name}.srt', 'w') as f:
-                f.write(to_srt(words))  #CREATES SRT FROM TEXT
-            
-            subtitles = pysrt.open(f'{TEMP_PATH}/{output_name}.srt') #OPENS SRT FILE FOR READING
-            subtitle_clips = create_subtitle_clips(subtitles) #FORMS MP4 WITH SUBTITLES                            
-            
-            updateLogger(log.buildingVideo)
-            subtitleFinal = CompositeVideoClip([audioVideoOutput] + subtitle_clips) #COMBINES SRT WITH MP4
-            
-            updateLogger(log.writingVideo)
-            subtitleFinal.write_videofile(f'{OUTPUT_PATH}/{output_name}.mp4') #WRITES AND SAVES TO OUTPUTPATH
-            #save_merged_video(subtitleFinal, output_name=output_name)
-            
-            updateVideoCounter(videoCounter)
-            if (videoCounter == 1):
-                print(f'{videoCounter} VIDEO MADE')
-            else:
-                print(f'{videoCounter} VIDEOS MADE')
-        
         else:
-            print('No Post Body')
+            print('No Post Body or Post is too large.')
 
 
 #methods to take mp4 compiled videos and post to respective platforms UNUSED
