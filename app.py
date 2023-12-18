@@ -23,8 +23,8 @@ from moviepy.config import change_settings
 import math
 
 
-change_settings({"IMAGEMAGICK_BINARY": r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"})
-
+#change_settings({"IMAGEMAGICK_BINARY": r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"})
+#change_settings({"IMAGEMAGICK_BINARY": r"/Users/alexbrady/Downloads/ImageMagick-7.0.10/bin/magick.exe"})
 load_dotenv()
 
 
@@ -53,6 +53,8 @@ class logger:
     subtitleVieoMerge = f'LOGGER: {nowTime} : MERGING VIDEO WITH SUBTITLES'
     buildingVideo = f'Logger: {nowTime} : BUILDING VIDEO'
     writingVideo = f'Logger: {nowTime} : WRITING VIDEO'
+    subVideoCreated = f'Logger: {nowTime} : SUBCLIP CREATED'
+    mainVideoCreated = f'Logger: {nowTime} : COMPLETE VIDEO FINISHED'
 
 log = logger()
 
@@ -237,9 +239,10 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
 
                     updateLogger(log.writingVideo)
                     subtitleFinal.write_videofile(f'{OUTPUT_PATH}/{output_name}-{i}.mp4')
-
+                    
+                    updateLogger(log.subVideoCreated)
                     updateVideoCounter(videoCounter)
-                
+
 
 
                     if (videoCounter == 1):
@@ -248,6 +251,7 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
                         print(f'{videoCounter} VIDEOS MADE')
                         
                     i += 1
+                updateLogger(logger.mainVideoCreated)
         else:
             print('No Post Body or Post is too large.')
     try:
@@ -333,21 +337,6 @@ def newTikTokWindow():
     vidCreateButton = tk.Button( tiktokWindow,command=(lambda:RedditScraperEngine(clicked.get(),redditPostNumSlider.get())), text="begin creating videos",height=1, width=15)
     vidCreateButton.grid(row=0, column=10)
 
-    postTikTok = tk.IntVar()
-    tiktokPostCheckBox = tk.Checkbutton(tiktokWindow, text='Post to TikTok', variable=postTikTok)
-    tiktokPostCheckBox.grid(row=3, column=10)
-    if postTikTok.get():
-        print() #will post to tiktok
-    else:
-        print() #will not post to tiktok
-    
-    savemp4 = tk.IntVar()
-    savemp4CheckBox = tk.Checkbutton(tiktokWindow, text='Save mp4 file(s)', variable=savemp4)
-    savemp4CheckBox.grid(row=4, column=10)
-    if savemp4.get():
-        print() #call method to save to computer hard drive ... use save_merged_video(video, hardDrive)
-    else:
-        print() # sends boolean to delete_video method in the engine loop
 
 def newFacebookWindow():
     facebookWindow = tk.Toplevel(window)
