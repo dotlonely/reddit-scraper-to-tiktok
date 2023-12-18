@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import pyaudio
 from pytube import YouTube
-from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip
+from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip, concatenate_audioclips
 from time import sleep
 import re
 import pvleopard
@@ -20,6 +20,7 @@ from tiktok_uploader.upload import upload_video, upload_videos
 from tiktok_uploader.auth import AuthBackend
 from google.cloud import texttospeech
 from moviepy.config import change_settings
+import math
 
 
 change_settings({"IMAGEMAGICK_BINARY": r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"})
@@ -40,6 +41,8 @@ TEMP_PATH = os.getenv('TEMP_PATH')
 OUTPUT_PATH = os.getenv('OUTPUT_PATH')
 
 reddit = Reddit(client_id=CLIENT_ID, client_secret=CLIENT_SECRET, user_agent=USER_AGENT)
+
+print
 
 class logger:
     nowTime = datetime.datetime.now()
@@ -63,10 +66,11 @@ def download_youtube_video(link: str) -> None:
     
     yt.streams.filter(file_extension='mp4').first().download(f'{SAVE_PATH}')
 
+
 def get_reddit_posts(subreddit: str, sliderNum):
     target = reddit.subreddit(subreddit)
     print(f'Display Name:{target.display_name}')
-    return target.top(limit=sliderNum)
+    return target.hot(limit=sliderNum)
 
 def merge_video_audio(video_file_path: str, audio_file_path: str) -> VideoFileClip:
     updateLogger(log.audioVideoMerge)
@@ -156,7 +160,7 @@ def time_to_seconds(time_obj):
     return time_obj.hours * 3600 + time_obj.minutes * 60 + time_obj.seconds + time_obj.milliseconds / 1000
 
 
-def create_subtitle_clips(subtitles, fontsize=28, font='Consolas', color='white', debug = False):
+def create_subtitle_clips(subtitles, fontsize=34, font='Consolas', color='white', debug = False):
     updateLogger(log.subtitleCreate)
     subtitle_clips = []
 
@@ -165,7 +169,7 @@ def create_subtitle_clips(subtitles, fontsize=28, font='Consolas', color='white'
         end_time = time_to_seconds(subtitle.end)
         duration = end_time - start_time
 
-        text_clip = TextClip(subtitle.text, fontsize=fontsize, font=font, color=color, bg_color = 'none', method='caption', stroke_width=3.5, align='North').set_start(start_time).set_duration(duration)
+        text_clip = TextClip(subtitle.text, fontsize=fontsize, font=font, color=color, bg_color = 'none', method='caption', stroke_width=10, align='North').set_start(start_time).set_duration(duration)
         subtitle_x_position = 'center'
         subtitle_y_position = 'center' 
 
@@ -183,58 +187,74 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
             output_name = re.sub('[^A-Za-z0-9]+', '', {post.title}.__str__())
             
             if f'{output_name}.mp4' not in os.listdir(f'{OUTPUT_PATH}'):
+                
+                if 'AITA' in post.title:
+                    post.title = (post.title).replace('AITA', 'Am I the Asshole', 1)
+
+                synthesize_text(post.title, f'{output_name}-title')
 
                 synthesize_text(post.selftext, output_name)
 
-                # The minecraft.mp4 is the name of a video I saved to my downloads path to use as the video base.
-                audioVideoOutput = merge_video_audio(f'{SAVE_PATH}/minecraft.mp4',f'{TEMP_PATH}/{output_name}.mp3')
-                
-                transcript, words = leopard.process_file(f'{TEMP_PATH}/{output_name}.mp3')
-                
-                with open(f'{TEMP_PATH}/{output_name}.srt', 'w') as f:
-                    f.write(to_srt(words))  #CREATES SRT FROM TEXT
-                
-                subtitles = pysrt.open(f'{TEMP_PATH}/{output_name}.srt') #OPENS SRT FILE FOR READING
-                subtitle_clips = create_subtitle_clips(subtitles) #FORMS MP4 WITH SUBTITLES                            
-                
-                updateLogger(log.buildingVideo)
-                subtitleFinal = CompositeVideoClip([audioVideoOutput] + subtitle_clips) #COMBINES SRT WITH MP4
-                
-                updateLogger(log.writingVideo)
-                subtitleFinal.write_videofile(f'{OUTPUT_PATH}/{output_name}.mp4') #WRITES AND SAVES TO OUTPUTPATH
-                #save_merged_video(subtitleFinal, output_name=output_name)
-                
-                updateVideoCounter(videoCounter)
-                
-                clear_temp_dir()
+                audio_length = AudioFileClip(f'{TEMP_PATH}/{output_name}.mp3').duration
+                print(f'Audio Length: {audio_length} seconds.')
 
-                if (videoCounter == 1):
-                    print(f'{videoCounter} VIDEO MADE')
-                else:
-                    print(f'{videoCounter} VIDEOS MADE')
-            
-            with open(f'{TEMP_PATH}/{output_name}.srt', 'w') as f:
-                f.write(to_srt(words))  #CREATES SRT FROM TEXT
-            
-            subtitles = pysrt.open(f'{TEMP_PATH}/{output_name}.srt') #OPENS SRT FILE FOR READING
-            subtitle_clips = create_subtitle_clips(subtitles) #FORMS MP4 WITH SUBTITLES                            
-            
-            updateLogger(log.buildingVideo)
-            subtitleFinal = CompositeVideoClip([audioVideoOutput] + subtitle_clips) #COMBINES SRT WITH MP4
-            
-            updateLogger(log.writingVideo)
-            subtitleFinal.write_videofile(f'{OUTPUT_PATH}/{output_name}.mp4') #WRITES AND SAVES TO OUTPUT PATH
-            #save_merged_video(subtitleFinal, output_name=output_name)
-            postTikTik(f'{OUTPUT_PATH}/{output_name}.mp4', 'test', '/Users/alexbrady/Library/Mobile Documents/com~apple~CloudDocs/RedditScrape Repo/reddit-scraper-to-tiktok/tiktokcookies.txt')
-            updateVideoCounter(videoCounter)
-            if (videoCounter == 1):
-                print(f'{videoCounter} VIDEO MADE')
-            else:
-                print(f'{videoCounter} VIDEOS MADE')
-        
+                num_videos = int(audio_length // 60)
+                print(f'Num videos: {num_videos}')
 
+                video_length = float(audio_length / num_videos)
+                print(f'Video Length: {video_length} seconds.')
+
+
+                i = 0
+                start_length = 0
+                while i < num_videos:
+                    video_clip = VideoFileClip(f'{SAVE_PATH}/minecraft.mp4')
+                    sub_clip = AudioFileClip(f'{TEMP_PATH}/{output_name}.mp3').subclip(start_length - i, (video_length + start_length))
+                    title_clip = AudioFileClip(f'{TEMP_PATH}/{output_name}-title.mp3')
+                    
+                    clip_list = []
+                    clip_list.append(title_clip)
+                    clip_list.append(sub_clip)
+                    clip_with_title = concatenate_audioclips(clips=clip_list)
+
+                    clip_with_title.write_audiofile(f'{TEMP_PATH}/{output_name}-{i}.mp3')
+
+                    transcript, words = leopard.process_file(f'{TEMP_PATH}/{output_name}-{i}.mp3')               
+                    
+                    with open(f'{TEMP_PATH}/{output_name}-{i}.srt', 'w') as f:
+                        f.write(to_srt(words))  #CREATES SRT FROM TEXT
+
+                    subtitles = pysrt.open(f'{TEMP_PATH}/{output_name}-{i}.srt') #OPENS SRT FILE FOR READING
+                    subtitle_clips = create_subtitle_clips(subtitles) #FORMS MP4 WITH SUBTITLES                            
+
+                    video_clip = video_clip.subclip(start_length, (video_length + start_length) + title_clip.duration)
+                    video_clip = video_clip.set_audio(clip_with_title)
+            
+                    start_length += video_length
+
+                    updateLogger(log.buildingVideo)
+                    subtitleFinal = CompositeVideoClip([video_clip] + subtitle_clips) #COMBINES SRT WITH MP4
+
+                    updateLogger(log.writingVideo)
+                    subtitleFinal.write_videofile(f'{OUTPUT_PATH}/{output_name}-{i}.mp4')
+
+                    updateVideoCounter(videoCounter)
+                
+
+
+                    if (videoCounter == 1):
+                        print(f'{videoCounter} VIDEO MADE')
+                    else:
+                        print(f'{videoCounter} VIDEOS MADE')
+                        
+                    i += 1
         else:
             print('No Post Body or Post is too large.')
+    try:
+        clear_temp_dir()
+    except OSError:
+        print('Could not clear temp.')
+
 
 
 #methods to take mp4 compiled videos and post to respective platforms UNUSED
