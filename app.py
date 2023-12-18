@@ -9,7 +9,7 @@ from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVide
 from time import sleep
 import re
 import pvleopard
-import time
+from time import sleep
 from argparse import ArgumentParser
 from typing import *
 import pysrt
@@ -17,7 +17,8 @@ import datetime
 import tkinter as tk
 import webbrowser
 from tkinter import scrolledtext as st
-
+from tiktok_uploader.upload import upload_video, upload_videos
+from tiktok_uploader.auth import AuthBackend
 
 load_dotenv()
 
@@ -61,7 +62,6 @@ def get_reddit_posts(subreddit: str, sliderNum):
     print(f'Display Name:{target.display_name}')
     return target.top(limit=sliderNum)
 
-
 def merge_video_audio(video_file_path: str, audio_file_path: str) -> VideoFileClip:
     updateLogger(log.audioVideoMerge)
     video_clip = VideoFileClip(video_file_path)
@@ -70,13 +70,11 @@ def merge_video_audio(video_file_path: str, audio_file_path: str) -> VideoFileCl
     video_clip = video_clip.subclip(0, audio_length)
     return video_clip.set_audio(audio_clip)
 
-
 def save_merged_video(video_clip: VideoFileClip, output_name: str) -> None:
     updateLogger(log.savingMergedVideo)
     video_clip.write_videofile(f'{OUTPUT_PATH}/{output_name}.mp4')
     video_clip.close()
     
-
 def init_tts_engine() -> pyttsx3.Engine:
     engine = pyttsx3.init()
     voices = engine.getProperty('voices')
@@ -121,10 +119,8 @@ def to_srt(
     
     return '\n'.join(lines)
 
-
 def time_to_seconds(time_obj):
     return time_obj.hours * 3600 + time_obj.minutes * 60 + time_obj.seconds + time_obj.milliseconds / 1000
-
 
 def create_subtitle_clips(subtitles, fontsize=18, font='Arial', color='white', debug = False):
     updateLogger(log.subtitleCreate)
@@ -171,9 +167,9 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
             subtitleFinal = CompositeVideoClip([audioVideoOutput] + subtitle_clips) #COMBINES SRT WITH MP4
             
             updateLogger(log.writingVideo)
-            subtitleFinal.write_videofile(f'{OUTPUT_PATH}/{output_name}.mp4') #WRITES AND SAVES TO OUTPUTPATH
+            subtitleFinal.write_videofile(f'{OUTPUT_PATH}/{output_name}.mp4') #WRITES AND SAVES TO OUTPUT PATH
             #save_merged_video(subtitleFinal, output_name=output_name)
-            
+            postTikTik(f'{OUTPUT_PATH}/{output_name}.mp4', 'test', '/Users/alexbrady/Library/Mobile Documents/com~apple~CloudDocs/RedditScrape Repo/reddit-scraper-to-tiktok/tiktokcookies.txt')
             updateVideoCounter(videoCounter)
             if (videoCounter == 1):
                 print(f'{videoCounter} VIDEO MADE')
@@ -185,8 +181,8 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
 
 
 #methods to take mp4 compiled videos and post to respective platforms UNUSED
-def postTikTik():
-    print()
+def postTikTik(videoFile : CompositeVideoClip, description : str, cookies):
+    upload_video(videoFile, description, cookies)
 def postFacebook():
     print()
 def postYoutube():
@@ -206,13 +202,11 @@ rightFrameMain.pack(side='right', fill='both')
 bottomFramMain = tk.Frame(window)
 bottomFramMain.pack(side= 'bottom', fill='y')
 
-
 videocounter = tk.Text(rightFrameMain, height=2, width=15, font=('arial 18'),)
 videocounter.pack()
 
 appLogger = st.ScrolledText(rightFrameMain, height=8, width=100)
 appLogger.pack()
-
 
 def updateLogger(message : str):
     appLogger.insert(tk.INSERT, message + '\n')
@@ -321,7 +315,6 @@ def newFacebookWindow():
     else:
         print() # sends boolean to delete_video method in the engine loop
     
-
 def newYoutubeWindow():
     youtubeWindow = tk.Toplevel(window)
     youtubeWindow.geometry('600x300')
