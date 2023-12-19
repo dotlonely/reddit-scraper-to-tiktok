@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import pyaudio
 from pytube import YouTube
-from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip, concatenate_audioclips
+from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip, concatenate_audioclips, videotools
 from time import sleep
 import re
 import pvleopard
@@ -25,7 +25,7 @@ import sys
 import random 
 
 
-#change_settings({"IMAGEMAGICK_BINARY": r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"})
+change_settings({"IMAGEMAGICK_BINARY": r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"})
 load_dotenv()
 
 #https://console.picovoice.ai/   -> signup(free) get access code and save to ENV
@@ -163,7 +163,7 @@ def time_to_seconds(time_obj):
     return time_obj.hours * 3600 + time_obj.minutes * 60 + time_obj.seconds + time_obj.milliseconds / 1000
 
 
-def create_subtitle_clips(subtitles, fontsize=45, font='ACNH', color='white', debug = False):
+def create_subtitle_clips(subtitles, fontsize=60, font='ACNH', color='white', debug = False):
     #updateLogger(log.subtitleCreate)
     subtitle_clips = []
 
@@ -174,13 +174,19 @@ def create_subtitle_clips(subtitles, fontsize=45, font='ACNH', color='white', de
 
         text_clip = TextClip(subtitle.text, fontsize=fontsize, font=font, color=color, bg_color = 'none', method='caption',stroke_color='black', stroke_width=2, align='North').set_start(start_time).set_duration(duration)
         subtitle_x_position = 'center'
-        subtitle_y_position = 'center' 
+        subtitle_y_position = 1100
 
         text_position = (subtitle_x_position, subtitle_y_position)                    
         subtitle_clips.append(text_clip.set_position(text_position))
     return subtitle_clips
 
 def RedditScraperEngine(selectedSubReddit, sliderNum):
+
+    #import csv
+
+    #make list from csv
+
+
     videoCounter = 0
     posts = get_reddit_posts(f'{selectedSubReddit}', sliderNum)
     for post in posts:
@@ -189,6 +195,7 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
             
             output_name = re.sub('[^A-Za-z0-9]+', '', {post.title}.__str__())
             
+            #Check list
             if f'{output_name}.mp4' not in os.listdir(f'{OUTPUT_PATH}'):
                 
                 if 'AITA' in post.title:
@@ -215,7 +222,8 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
                 while i < num_videos:
 
 
-                    video_clip = VideoFileClip(f'{SAVE_PATH}/{os.listdir(f'{SAVE_PATH}')[video_index]}')
+                    #video_clip = VideoFileClip(f'{SAVE_PATH}/{os.listdir(f'{SAVE_PATH}')[video_index]}')
+                    video_clip = VideoFileClip(f'{SAVE_PATH}/202312190040.mp4')
                     sub_clip = AudioFileClip(f'{TEMP_PATH}/{output_name}.mp3').subclip(start_length - i, (video_length + start_length))
                     title_clip = AudioFileClip(f'{TEMP_PATH}/{output_name}-title.mp3')
                     
@@ -256,7 +264,7 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
                         print(f'{videoCounter} VIDEOS MADE')
                         
                     i += 1
-                updateLogger(logger.mainVideoCreated)
+                #updateLogger(logger.mainVideoCreated)
         else:
             print('No Post Body or Post is too large.')
     try:
