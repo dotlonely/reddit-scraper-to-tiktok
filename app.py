@@ -21,13 +21,13 @@ from tiktok_uploader.auth import AuthBackend
 from google.cloud import texttospeech
 from moviepy.config import change_settings
 import math
+import sys  
+import random 
 
 
 change_settings({"IMAGEMAGICK_BINARY": r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"})
 
 load_dotenv()
-
-
 
 #https://console.picovoice.ai/   -> signup(free) get access code and save to ENV
 leopard = pvleopard.create(access_key=os.getenv('LEOPARD_ACCESS_KEY'))
@@ -42,7 +42,9 @@ OUTPUT_PATH = os.getenv('OUTPUT_PATH')
 
 reddit = Reddit(client_id=CLIENT_ID, client_secret=CLIENT_SECRET, user_agent=USER_AGENT)
 
-print
+sub_reddit = sys.argv[1]
+count = int(sys.argv[2])
+
 
 class logger:
     nowTime = datetime.datetime.now()
@@ -73,7 +75,7 @@ def get_reddit_posts(subreddit: str, sliderNum):
     return target.hot(limit=sliderNum)
 
 def merge_video_audio(video_file_path: str, audio_file_path: str) -> VideoFileClip:
-    updateLogger(log.audioVideoMerge)
+    #updateLogger(log.audioVideoMerge)
     video_clip = VideoFileClip(video_file_path)
     audio_clip = AudioFileClip(audio_file_path)
     audio_length = audio_clip.duration
@@ -81,7 +83,7 @@ def merge_video_audio(video_file_path: str, audio_file_path: str) -> VideoFileCl
     return video_clip.set_audio(audio_clip)
 
 def save_merged_video(video_clip: VideoFileClip, output_name: str) -> None:
-    updateLogger(log.savingMergedVideo)
+    #updateLogger(log.savingMergedVideo)
     video_clip.write_videofile(f'{OUTPUT_PATH}/{output_name}.mp4')
     video_clip.close()
     
@@ -124,7 +126,7 @@ def to_srt(
         words: Sequence[pvleopard.Leopard.Word],
         endpoint_sec: float = 1.,
         length_limit: Optional[int] = 1) -> str:
-    updateLogger(log.toSRT)
+    #updateLogger(log.toSRT)
     def _helper(end: int, ) -> None:
         lines.append("%d" % section)
         lines.append(
@@ -160,8 +162,8 @@ def time_to_seconds(time_obj):
     return time_obj.hours * 3600 + time_obj.minutes * 60 + time_obj.seconds + time_obj.milliseconds / 1000
 
 
-def create_subtitle_clips(subtitles, fontsize=34, font='Consolas', color='white', debug = False):
-    updateLogger(log.subtitleCreate)
+def create_subtitle_clips(subtitles, fontsize=45, font='ACNH', color='white', debug = False):
+    #updateLogger(log.subtitleCreate)
     subtitle_clips = []
 
     for subtitle in subtitles:
@@ -169,7 +171,7 @@ def create_subtitle_clips(subtitles, fontsize=34, font='Consolas', color='white'
         end_time = time_to_seconds(subtitle.end)
         duration = end_time - start_time
 
-        text_clip = TextClip(subtitle.text, fontsize=fontsize, font=font, color=color, bg_color = 'none', method='caption', stroke_width=10, align='North').set_start(start_time).set_duration(duration)
+        text_clip = TextClip(subtitle.text, fontsize=fontsize, font=font, color=color, bg_color = 'none', method='caption',stroke_color='black', stroke_width=2, align='North').set_start(start_time).set_duration(duration)
         subtitle_x_position = 'center'
         subtitle_y_position = 'center' 
 
@@ -204,11 +206,14 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
                 video_length = float(audio_length / num_videos)
                 print(f'Video Length: {video_length} seconds.')
 
-
+                video_index = random.randint(0, len(os.listdir(f'{SAVE_PATH}')) - 1)
+                
                 i = 0
                 start_length = 0
                 while i < num_videos:
-                    video_clip = VideoFileClip(f'{SAVE_PATH}/minecraft.mp4')
+
+
+                    video_clip = VideoFileClip(f'{SAVE_PATH}/{os.listdir(f'{SAVE_PATH}')[video_index]}')
                     sub_clip = AudioFileClip(f'{TEMP_PATH}/{output_name}.mp3').subclip(start_length - i, (video_length + start_length))
                     title_clip = AudioFileClip(f'{TEMP_PATH}/{output_name}-title.mp3')
                     
@@ -232,13 +237,13 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
             
                     start_length += video_length
 
-                    updateLogger(log.buildingVideo)
+                    #updateLogger(log.buildingVideo)
                     subtitleFinal = CompositeVideoClip([video_clip] + subtitle_clips) #COMBINES SRT WITH MP4
 
-                    updateLogger(log.writingVideo)
+                    #updateLogger(log.writingVideo)
                     subtitleFinal.write_videofile(f'{OUTPUT_PATH}/{output_name}-{i}.mp4')
 
-                    updateVideoCounter(videoCounter)
+                    #updateVideoCounter(videoCounter)
                 
 
 
@@ -254,6 +259,9 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
         clear_temp_dir()
     except OSError:
         print('Could not clear temp.')
+
+
+RedditScraperEngine(sub_reddit, count)
 
 
 
