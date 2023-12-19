@@ -25,8 +25,7 @@ import sys
 import random 
 
 
-change_settings({"IMAGEMAGICK_BINARY": r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"})
-
+#change_settings({"IMAGEMAGICK_BINARY": r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"})
 load_dotenv()
 
 #https://console.picovoice.ai/   -> signup(free) get access code and save to ENV
@@ -55,6 +54,8 @@ class logger:
     subtitleVieoMerge = f'LOGGER: {nowTime} : MERGING VIDEO WITH SUBTITLES'
     buildingVideo = f'Logger: {nowTime} : BUILDING VIDEO'
     writingVideo = f'Logger: {nowTime} : WRITING VIDEO'
+    subVideoCreated = f'Logger: {nowTime} : SUBCLIP CREATED'
+    mainVideoCreated = f'Logger: {nowTime} : COMPLETE VIDEO FINISHED'
 
 log = logger()
 
@@ -202,7 +203,8 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
 
                 num_videos = int(audio_length // 60)
                 print(f'Num videos: {num_videos}')
-
+                updateLogger(f'Number videos to be created from current rotation: {num_videos}')
+                
                 video_length = float(audio_length / num_videos)
                 print(f'Video Length: {video_length} seconds.')
 
@@ -242,9 +244,10 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
 
                     #updateLogger(log.writingVideo)
                     subtitleFinal.write_videofile(f'{OUTPUT_PATH}/{output_name}-{i}.mp4')
+                    
+                    updateLogger(log.subVideoCreated)
+                    updateVideoCounter(videoCounter)
 
-                    #updateVideoCounter(videoCounter)
-                
 
 
                     if (videoCounter == 1):
@@ -253,6 +256,7 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
                         print(f'{videoCounter} VIDEOS MADE')
                         
                     i += 1
+                updateLogger(logger.mainVideoCreated)
         else:
             print('No Post Body or Post is too large.')
     try:
@@ -264,14 +268,9 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
 RedditScraperEngine(sub_reddit, count)
 
 
+RedditScraperEngine(sub_reddit, count)
 
-#methods to take mp4 compiled videos and post to respective platforms UNUSED
-def postTikTik(videoFile : CompositeVideoClip, description : str, cookies):
-    upload_video(videoFile, description, cookies)
-def postFacebook():
-    print()
-def postYoutube():
-    print()
+
 
 # **************** TKINTER WINDOW SETUP / TKINTER METHODS *********************
 window = tk.Tk()
@@ -315,12 +314,12 @@ redditLink = tk.Label(leftFrameMain, text='Reddit Page', font='Helvetica 15 unde
 redditLink.pack()
 redditLink.bind("<Button-2>", lambda e:(getWeb('https://www.reddit.com')))
 
-def newTikTokWindow():
-    tiktokWindow = tk.Toplevel(window)
-    tiktokWindow.title('TikTok from Reddit')
-    tiktokWindow.geometry('600x300')
+def newScraperWindow():
+    redditScrapingWindow = tk.Toplevel(window)
+    redditScrapingWindow.title('Reddit Scraper')
+    redditScrapingWindow.geometry('600x300')
 
-    subRedditLabel = tk.Label(tiktokWindow,text='Choose SubReddit:',font=(14)).grid(row=0)
+    subRedditLabel = tk.Label(redditScrapingWindow,text='Choose SubReddit:',font=(14)).grid(row=0)
     subReddits = [
         'AmITheAsshole',
         'Money',
@@ -331,123 +330,21 @@ def newTikTokWindow():
     clicked = tk.StringVar() 
     clicked.set( "AmITheAsshole") 
 
-    drop = tk.OptionMenu( tiktokWindow , clicked , *subReddits ) 
+    drop = tk.OptionMenu( redditScrapingWindow , clicked , *subReddits ) 
     drop.grid(row=0,column=1)
     drop.config(width=14)
 
-    redditPostNumSlider = tk.Scale(tiktokWindow, label='Number of Reddit posts to be scraped', orient='horizontal', length=400, width=45, from_=0, to=50, cursor='dot', activebackground='red') 
+    redditPostNumSlider = tk.Scale(redditScrapingWindow, label='Number of Reddit posts to be scraped', orient='horizontal', length=400, width=45, from_=0, to=50, cursor='dot', activebackground='red') 
     redditPostNumSlider.grid(row=20, column=0, columnspan=10)
     
-    vidCreateButton = tk.Button( tiktokWindow,command=(lambda:RedditScraperEngine(clicked.get(),redditPostNumSlider.get())), text="begin creating videos",height=1, width=15)
+    vidCreateButton = tk.Button( redditScrapingWindow,command=(lambda:RedditScraperEngine(clicked.get(),redditPostNumSlider.get())), text="begin creating videos",height=1, width=15)
     vidCreateButton.grid(row=0, column=10)
 
-    postTikTok = tk.IntVar()
-    tiktokPostCheckBox = tk.Checkbutton(tiktokWindow, text='Post to TikTok', variable=postTikTok)
-    tiktokPostCheckBox.grid(row=3, column=10)
-    if postTikTok.get():
-        print() #will post to tiktok
-    else:
-        print() #will not post to tiktok
-    
-    savemp4 = tk.IntVar()
-    savemp4CheckBox = tk.Checkbutton(tiktokWindow, text='Save mp4 file(s)', variable=savemp4)
-    savemp4CheckBox.grid(row=4, column=10)
-    if savemp4.get():
-        print() #call method to save to computer hard drive ... use save_merged_video(video, hardDrive)
-    else:
-        print() # sends boolean to delete_video method in the engine loop
-
-def newFacebookWindow():
-    facebookWindow = tk.Toplevel(window)
-    facebookWindow.geometry('600x300')
-    facebookWindow.title('Facebook from Reddit')
-    facebookWindow.config(bg='RoyalBlue1')
-    
-    subRedditLabel = tk.Label(facebookWindow,text='Choose SubReddit:',font=(14)).grid(row=0)
-    subReddits = [
-        'AmITheAsshole',
-        'Money',
-        'LegalAdvice',
-        'Scams'
-                ]
-
-    clicked = tk.StringVar() 
-    clicked.set( "AmITheAsshole") 
-
-    drop = tk.OptionMenu( facebookWindow , clicked , *subReddits ) 
-    drop.grid(row=0,column=1)
-    drop.config(width=14)
-
-    redditPostNumSlider = tk.Scale(facebookWindow, label='Number of Reddit posts to be scraped', orient='horizontal', length=400, width=45, from_=0, to=50, cursor='dot', activebackground='red') 
-    redditPostNumSlider.grid(row=20, column=0, columnspan=10)
-    
-    vidCreateButton = tk.Button( facebookWindow, text="begin creating videos",height=1, width=15)
-    vidCreateButton.grid(row=0, column=10)
-
-    postTikTok = tk.IntVar()
-    facebookPostCheckBox = tk.Checkbutton(facebookWindow, text='Post to Facebook', variable=postTikTok)
-    facebookPostCheckBox.grid(row=3, column=10)
-    if postTikTok.get():
-        print() #will post to tiktok
-    else:
-        print() #will not post to tiktok
-    
-    savemp4 = tk.IntVar()
-    savemp4CheckBox = tk.Checkbutton(facebookWindow, text='Save mp4 file(s)', variable=savemp4)
-    savemp4CheckBox.grid(row=4, column=10)
-    if savemp4.get():
-        print() #call method to save to computer hard drive ... use save_merged_video(video, hardDrive)
-    else:
-        print() # sends boolean to delete_video method in the engine loop
-    
-def newYoutubeWindow():
-    youtubeWindow = tk.Toplevel(window)
-    youtubeWindow.geometry('600x300')
-    youtubeWindow.title('Youtube from Reddit')
-    
-    subRedditLabel = tk.Label(youtubeWindow,text='Choose SubReddit:',font=(14)).grid(row=0)
-    subReddits = [
-        'AmITheAsshole',
-        'Money',
-        'LegalAdvice',
-        'Scams'
-                ]
-
-    clicked = tk.StringVar() 
-    clicked.set( "AmITheAsshole") 
-
-    drop = tk.OptionMenu( youtubeWindow , clicked , *subReddits ) 
-    drop.grid(row=0,column=1)
-    drop.config(width=14)
-
-    redditPostNumSlider = tk.Scale(youtubeWindow, label='Number of Reddit posts to be scraped', orient='horizontal', length=400, width=45, from_=0, to=50, cursor='dot', activebackground='red') 
-    redditPostNumSlider.grid(row=20, column=0, columnspan=10)
-    
-    vidCreateButton = tk.Button( youtubeWindow, text="begin creating videos",height=1, width=15)
-    vidCreateButton.grid(row=0, column=10)
-
-    postTikTok = tk.IntVar()
-    youtubePostCheckBox = tk.Checkbutton(youtubeWindow, text='Post to Youtube', variable=postTikTok)
-    youtubePostCheckBox.grid(row=3, column=10)
-    if postTikTok.get():
-        print() #will post to tiktok
-    else:
-        print() #will not post to tiktok
-    
-    savemp4 = tk.IntVar()
-    savemp4CheckBox = tk.Checkbutton(youtubeWindow, text='Save mp4 file(s)', variable=savemp4)
-    savemp4CheckBox.grid(row=4, column=10)
-    if savemp4.get():
-        print() #call method to save to computer hard drive ... use save_merged_video(video, hardDrive)
-    else:
-        print() # sends boolean to delete_video method in the engine loop
 
 #menu bar
 mainMenu = tk.Menu(window)
 appMenu = tk.Menu(mainMenu, tearoff=0)
-appMenu.add_command(label='TikTok', command=newTikTokWindow)
-appMenu.add_command(label='Facebook', command=newFacebookWindow)
-appMenu.add_command(label='Youtube', command=newYoutubeWindow)
+appMenu.add_command(label='Reddit', command=newScraperWindow)
 appMenu.add_separator()
 appMenu.add_command(label='Quit', command=window.quit)
 mainMenu.add_cascade(label='Reddit', menu=appMenu)
