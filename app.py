@@ -203,7 +203,7 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
 
                 num_videos = int(audio_length // 60)
                 print(f'Num videos: {num_videos}')
-                updateLogger(f'Number videos to be created from current rotation: {num_videos}')
+                #updateLogger(f'Number videos to be created from current rotation: {num_videos}')
                 
                 video_length = float(audio_length / num_videos)
                 print(f'Video Length: {video_length} seconds.')
@@ -245,8 +245,8 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
                     #updateLogger(log.writingVideo)
                     subtitleFinal.write_videofile(f'{OUTPUT_PATH}/{output_name}-{i}.mp4')
                     
-                    updateLogger(log.subVideoCreated)
-                    updateVideoCounter(videoCounter)
+                    #updateLogger(log.subVideoCreated)
+                    #updateVideoCounter(videoCounter)
 
 
 
@@ -266,10 +266,6 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
 
 
 RedditScraperEngine(sub_reddit, count)
-
-
-RedditScraperEngine(sub_reddit, count)
-
 
 
 # **************** TKINTER WINDOW SETUP / TKINTER METHODS *********************
