@@ -41,8 +41,8 @@ OUTPUT_PATH = os.getenv('OUTPUT_PATH')
 
 reddit = Reddit(client_id=CLIENT_ID, client_secret=CLIENT_SECRET, user_agent=USER_AGENT)
 
-sub_reddit = sys.argv[1]
-count = int(sys.argv[2])
+#sub_reddit = sys.argv[1]
+#count = int(sys.argv[2])
 
 
 class logger:
@@ -267,14 +267,14 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
     except OSError:
         print('Could not clear temp.')
 
-#append videosCreated to csv file 
-videosCSVFile = 'createdVideos.csv'
+#append videosCreated to csv file / created file path env variable
+videosCSVFile = os.getenv('VIDEOS_CREATED_CSV_PATH')
 
 with open(videosCSVFile, 'w') as csvfile:
     csvwriter = csv.writer(csvfile)
     csvwriter.writerows(videosCreated)
 
-RedditScraperEngine(sub_reddit, count)
+#RedditScraperEngine(sub_reddit, count)
 
 
 # **************** TKINTER WINDOW SETUP / TKINTER METHODS *********************
