@@ -2,6 +2,7 @@
 __pycache__
 /static/output
 /static/temp
+/static/downloads
 venv
 myvenv
 .DS_Store
