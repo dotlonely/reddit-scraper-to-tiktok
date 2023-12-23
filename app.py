@@ -209,6 +209,9 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
                 print(f'Audio Length: {audio_length} seconds.')
 
                 num_videos = int(audio_length // 60)
+
+                num_videos = 1 if num_videos == 0 else num_videos
+
                 print(f'Num videos: {num_videos}')
                 #updateLogger(f'Number videos to be created from current rotation: {num_videos}')
                 
@@ -223,7 +226,7 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
 
 
                     #video_clip = VideoFileClip(f'{SAVE_PATH}/{os.listdir(f'{SAVE_PATH}')[video_index]}')
-                    video_clip = VideoFileClip(f'{SAVE_PATH}/202312190040.mp4')
+                    video_clip = VideoFileClip(f'{SAVE_PATH}/{os.listdir(SAVE_PATH)[video_index]}')
                     sub_clip = AudioFileClip(f'{TEMP_PATH}/{output_name}.mp3').subclip(start_length - i, (video_length + start_length))
                     title_clip = AudioFileClip(f'{TEMP_PATH}/{output_name}-title.mp3')
                     
