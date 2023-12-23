@@ -1,24 +1,25 @@
-from praw import Reddit
-from dotenv import load_dotenv
-import pandas as pd
 import os
-from pytube import YouTube
-from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip, concatenate_audioclips
+import sys  
+import random 
+import csv
 import re
-import pvleopard
-from typing import *
+from typing import Sequence, Optional
+from dotenv import load_dotenv
 import pysrt
-import datetime
+import pvleopard
+from praw import Reddit 
+from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip, concatenate_audioclips
 import tkinter as tk
 from tkinter import scrolledtext as st
 from google.cloud import texttospeech
 from moviepy.config import change_settings
-import sys  
-import random 
-import csv
+from logger import Logger
+from reddit_utils import get_reddit_posts
 
 change_settings({"IMAGEMAGICK_BINARY": r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"})
 load_dotenv()
+
+logger = Logger() 
 
 #https://console.picovoice.ai/   -> signup(free) get access code and save to ENV
 leopard = pvleopard.create(access_key=os.getenv('LEOPARD_ACCESS_KEY'))
@@ -33,42 +34,19 @@ OUTPUT_PATH = os.getenv('OUTPUT_PATH')
 
 reddit = Reddit(client_id=CLIENT_ID, client_secret=CLIENT_SECRET, user_agent=USER_AGENT)
 
-sub_reddit = sys.argv[1]
-count = int(sys.argv[2])
+subreddits = ['AmITheAsshole','stories']
+
+posts = get_reddit_posts(reddit, subreddits, 5)
+
+for p in posts:
+    print(p.title)
+
+# sub_reddit = sys.argv[1]
+# count = int(sys.argv[2])
 
 
-class logger:
-    nowTime = datetime.datetime.now()
-    audioVideoMerge = f'LOGGER: {nowTime} : MERGING AUDIO WITH VIDEO'
-    savingMergedVideo = f'LOGGER: {nowTime} : SAVING MERGED VIDEO'
-    toSRT = f'LOGGER: {nowTime} : CONVERTING TEXT TO SRT'
-    subtitleCreate = f'LOGGER: {nowTime} : CREATING SUBTITLES'
-    subtitleVieoMerge = f'LOGGER: {nowTime} : MERGING VIDEO WITH SUBTITLES'
-    buildingVideo = f'Logger: {nowTime} : BUILDING VIDEO'
-    writingVideo = f'Logger: {nowTime} : WRITING VIDEO'
-    subVideoCreated = f'Logger: {nowTime} : SUBCLIP CREATED'
-    mainVideoCreated = f'Logger: {nowTime} : COMPLETE VIDEO FINISHED'
-
-log = logger()
-
-# Downloads youtube video to save path
-def download_youtube_video(link: str) -> None:
-    try:
-        yt = YouTube(link)
-        print('Connected')
-    except:
-        print("Connection Error")
-    
-    yt.streams.filter(file_extension='mp4').first().download(f'{SAVE_PATH}')
-
-
-def get_reddit_posts(subreddit: str, sliderNum):
-    target = reddit.subreddit(subreddit)
-    print(f'Display Name:{target.display_name}')
-    return target.hot(limit=sliderNum)
 
 def merge_video_audio(video_file_path: str, audio_file_path: str) -> VideoFileClip:
-    #updateLogger(log.audioVideoMerge)
     video_clip = VideoFileClip(video_file_path)
     audio_clip = AudioFileClip(audio_file_path)
     audio_length = audio_clip.duration
@@ -76,19 +54,14 @@ def merge_video_audio(video_file_path: str, audio_file_path: str) -> VideoFileCl
     return video_clip.set_audio(audio_clip)
 
 def save_merged_video(video_clip: VideoFileClip, output_name: str) -> None:
-    #updateLogger(log.savingMergedVideo)
     video_clip.write_videofile(f'{OUTPUT_PATH}/{output_name}.mp4')
     video_clip.close()
-    
-
 
 def synthesize_text(text, output_name):
     client = texttospeech.TextToSpeechClient()
 
     input_text = texttospeech.SynthesisInput(text=text)
 
-    # Note: the voice can also be specified by name.
-    # Names of voices can be retrieved with client.list_voices().
     voice = texttospeech.VoiceSelectionParams(
         language_code="en-US",
         name="en-US-Standard-E",
@@ -103,7 +76,6 @@ def synthesize_text(text, output_name):
         request={"input": input_text, "voice": voice, "audio_config": audio_config}
     )
 
-    # The response's audio_content is binary.
     with open(f"{TEMP_PATH}/{output_name}.mp3", "wb") as out:
         out.write(response.audio_content)
 
@@ -119,7 +91,6 @@ def to_srt(
         words: Sequence[pvleopard.Leopard.Word],
         endpoint_sec: float = 1.,
         length_limit: Optional[int] = 1) -> str:
-    #updateLogger(log.toSRT)
     def _helper(end: int, ) -> None:
         lines.append("%d" % section)
         lines.append(
@@ -156,7 +127,6 @@ def time_to_seconds(time_obj):
 
 
 def create_subtitle_clips(subtitles, fontsize=60, font='ACNH', color='white', debug = False):
-    #updateLogger(log.subtitleCreate)
     subtitle_clips = []
 
     for subtitle in subtitles:
@@ -173,10 +143,9 @@ def create_subtitle_clips(subtitles, fontsize=60, font='ACNH', color='white', de
     return subtitle_clips
     
 
-def RedditScraperEngine(selectedSubReddit, sliderNum, videoCounter, j, videos_created):
+def RedditScraperEngine(sub_reddit:str, num_videos_to_make: int, target_num: int, i: int, videos_created: list) -> None:
 
-    videoCounter = videoCounter
-
+    target_num = target_num
     videos_created = videos_created
 
     if not videos_created:
@@ -185,44 +154,37 @@ def RedditScraperEngine(selectedSubReddit, sliderNum, videoCounter, j, videos_cr
             reader = csv.reader(file)
             videos_created = reader.__next__()
 
-    posts = get_reddit_posts(f'{selectedSubReddit}', sliderNum)
-    j = j
+    posts = get_reddit_posts(f'{sub_reddit}', num_videos_to_make)
+
+    i = i
     for post in posts:
         if post.selftext and post.selftext != '' and len(post.selftext) <= 5000:
             
             output_name = re.sub('[^A-Za-z0-9]+', '', {post.title}.__str__())
             
-            #Check list
             if output_name not in videos_created:
                 
                 if 'AITA' in post.title:
                     post.title = (post.title).replace('AITA', 'Am I the Asshole', 1)
 
                 synthesize_text(post.title, f'{output_name}-title')
-
                 synthesize_text(post.selftext, output_name)
 
                 audio_length = AudioFileClip(f'{TEMP_PATH}/{output_name}.mp3').duration
-                print(f'Audio Length: {audio_length} seconds.')
 
                 num_videos = int(audio_length // 60)
-
                 num_videos = 1 if num_videos == 0 else num_videos
-
-                print(f'Num videos: {num_videos}')
-                #updateLogger(f'Number videos to be created from current rotation: {num_videos}')
                 
                 video_length = float(audio_length / num_videos)
-                print(f'Video Length: {video_length} seconds.')
 
                 video_index = random.randint(0, len(os.listdir(f'{SAVE_PATH}')) - 1)
 
-                i = 0
                 start_length = 0
-                while i < num_videos:
+                j = 0
+                while j < num_videos:
 
                     video_clip = VideoFileClip(f'{SAVE_PATH}/{os.listdir(SAVE_PATH)[video_index]}')
-                    sub_clip = AudioFileClip(f'{TEMP_PATH}/{output_name}.mp3').subclip(start_length - i, (video_length + start_length))
+                    sub_clip = AudioFileClip(f'{TEMP_PATH}/{output_name}.mp3').subclip(start_length - j, (video_length + start_length))
                     title_clip = AudioFileClip(f'{TEMP_PATH}/{output_name}-title.mp3')
                     
                     clip_list = []
@@ -230,14 +192,14 @@ def RedditScraperEngine(selectedSubReddit, sliderNum, videoCounter, j, videos_cr
                     clip_list.append(sub_clip)
                     clip_with_title = concatenate_audioclips(clips=clip_list)
 
-                    clip_with_title.write_audiofile(f'{TEMP_PATH}/{output_name}-{i}.mp3')
+                    clip_with_title.write_audiofile(f'{TEMP_PATH}/{output_name}-{j}.mp3')
 
-                    transcript, words = leopard.process_file(f'{TEMP_PATH}/{output_name}-{i}.mp3')               
+                    transcript, words = leopard.process_file(f'{TEMP_PATH}/{output_name}-{j}.mp3')               
                     
-                    with open(f'{TEMP_PATH}/{output_name}-{i}.srt', 'w') as f:
+                    with open(f'{TEMP_PATH}/{output_name}-{j}.srt', 'w') as f:
                         f.write(to_srt(words))  #CREATES SRT FROM TEXT
 
-                    subtitles = pysrt.open(f'{TEMP_PATH}/{output_name}-{i}.srt') #OPENS SRT FILE FOR READING
+                    subtitles = pysrt.open(f'{TEMP_PATH}/{output_name}-{j}.srt') #OPENS SRT FILE FOR READING
                     subtitle_clips = create_subtitle_clips(subtitles) #FORMS MP4 WITH SUBTITLES                            
 
                     video_clip = video_clip.subclip(start_length, (video_length + start_length) + title_clip.duration)
@@ -245,30 +207,23 @@ def RedditScraperEngine(selectedSubReddit, sliderNum, videoCounter, j, videos_cr
             
                     start_length += video_length
 
-                    #updateLogger(log.buildingVideo)
                     subtitleFinal = CompositeVideoClip([video_clip] + subtitle_clips) #COMBINES SRT WITH MP4
 
-                    #updateLogger(log.writingVideo)
-                    subtitleFinal.write_videofile(f'{OUTPUT_PATH}/{output_name}-{i}.mp4')
+                    subtitleFinal.write_videofile(f'{OUTPUT_PATH}/{output_name}-{j}.mp4')
                     
-                    #updateLogger(log.subVideoCreated)
-                    #updateVideoCounter(videoCounter)
-
-                    i += 1
+                    j += 1
                     videos_created.append(output_name)
 
-                videoCounter += 1
-                #updateLogger(logger.mainVideoCreated)
+                target_num += 1
             else:
                 print("Post already used")
         else:
             print('No Post Body or Post is too large.')
 
-    j+=1
+    i+=1
 
-
-    if (videoCounter != count):   
-        RedditScraperEngine(sub_reddit, count+j, videoCounter, j, videos_created)
+    if (target_num != count):   
+        RedditScraperEngine(sub_reddit, count+i, target_num, i, videos_created)
 
     with open('created_videos.csv', 'w') as file:
         writer = csv.writer(file)
@@ -280,7 +235,7 @@ def RedditScraperEngine(selectedSubReddit, sliderNum, videoCounter, j, videos_cr
         print('Could not clear temp.')
 
 
-RedditScraperEngine(sub_reddit, count, 0, 0, [])
+#RedditScraperEngine(sub_reddit, count, 0, 0, [])
 
 
 # **************** TKINTER WINDOW SETUP / TKINTER METHODS *********************
