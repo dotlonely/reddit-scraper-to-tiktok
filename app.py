@@ -23,7 +23,7 @@ from moviepy.config import change_settings
 import math
 import sys  
 import random 
-
+import csv
 
 change_settings({"IMAGEMAGICK_BINARY": r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"})
 load_dotenv()
@@ -41,8 +41,8 @@ OUTPUT_PATH = os.getenv('OUTPUT_PATH')
 
 reddit = Reddit(client_id=CLIENT_ID, client_secret=CLIENT_SECRET, user_agent=USER_AGENT)
 
-sub_reddit = sys.argv[1]
-count = int(sys.argv[2])
+#sub_reddit = sys.argv[1]
+#count = int(sys.argv[2])
 
 
 class logger:
@@ -180,6 +180,8 @@ def create_subtitle_clips(subtitles, fontsize=60, font='ACNH', color='white', de
         subtitle_clips.append(text_clip.set_position(text_position))
     return subtitle_clips
 
+videosCreated = []
+
 def RedditScraperEngine(selectedSubReddit, sliderNum):
 
     #import csv
@@ -224,9 +226,9 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
                 start_length = 0
                 while i < num_videos:
 
-
                     #video_clip = VideoFileClip(f'{SAVE_PATH}/{os.listdir(f'{SAVE_PATH}')[video_index]}')
                     video_clip = VideoFileClip(f'{SAVE_PATH}/{os.listdir(SAVE_PATH)[video_index]}')
+    
                     sub_clip = AudioFileClip(f'{TEMP_PATH}/{output_name}.mp3').subclip(start_length - i, (video_length + start_length))
                     title_clip = AudioFileClip(f'{TEMP_PATH}/{output_name}-title.mp3')
                     
@@ -267,7 +269,10 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
                         print(f'{videoCounter} VIDEOS MADE')
                         
                     i += 1
+
                 #updateLogger(logger.mainVideoCreated)
+
+                videosCreated.append(output_name)
         else:
             print('No Post Body or Post is too large.')
     try:
@@ -275,8 +280,14 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
     except OSError:
         print('Could not clear temp.')
 
+#append videosCreated to csv file / created file path env variable
+videosCSVFile = os.getenv('VIDEOS_CREATED_CSV_PATH')
 
-RedditScraperEngine(sub_reddit, count)
+with open(videosCSVFile, 'w') as csvfile:
+    csvwriter = csv.writer(csvfile)
+    csvwriter.writerows(videosCreated)
+
+#RedditScraperEngine(sub_reddit, count)
 
 
 # **************** TKINTER WINDOW SETUP / TKINTER METHODS *********************
