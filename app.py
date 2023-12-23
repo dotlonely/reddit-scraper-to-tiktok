@@ -3,26 +3,23 @@ import sys
 import random 
 import csv
 import re
-from typing import Sequence, Optional
 from dotenv import load_dotenv
 import pysrt
 import pvleopard
 from praw import Reddit 
-from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip, concatenate_audioclips
+from moviepy.editor import VideoFileClip, AudioFileClip, CompositeVideoClip, concatenate_audioclips
 import tkinter as tk
 from tkinter import scrolledtext as st
-from google.cloud import texttospeech
 from moviepy.config import change_settings
 from logger import Logger
 from reddit_utils import get_reddit_posts
+from video_utils import  synthesize_text, to_srt, clear_dir, create_subtitle_clips
 
 change_settings({"IMAGEMAGICK_BINARY": r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"})
 load_dotenv()
 
 logger = Logger() 
 
-#https://console.picovoice.ai/   -> signup(free) get access code and save to ENV
-leopard = pvleopard.create(access_key=os.getenv('LEOPARD_ACCESS_KEY'))
 
 CLIENT_ID = os.getenv('CLIENT_ID')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
@@ -32,129 +29,30 @@ SAVE_PATH = os.getenv('SAVE_PATH')
 TEMP_PATH = os.getenv('TEMP_PATH')
 OUTPUT_PATH = os.getenv('OUTPUT_PATH')
 
+
+#https://console.picovoice.ai/   -> signup(free) get access code and save to ENV
+leopard = pvleopard.create(access_key=os.getenv('LEOPARD_ACCESS_KEY'))
+
+
 reddit = Reddit(client_id=CLIENT_ID, client_secret=CLIENT_SECRET, user_agent=USER_AGENT)
 
 subreddits = ['AmITheAsshole','stories']
 
-posts = get_reddit_posts(reddit, subreddits, 5)
 
-for p in posts:
-    print(p.title)
-
-# sub_reddit = sys.argv[1]
-# count = int(sys.argv[2])
+count = int(sys.argv[1])
 
 
-
-def merge_video_audio(video_file_path: str, audio_file_path: str) -> VideoFileClip:
-    video_clip = VideoFileClip(video_file_path)
-    audio_clip = AudioFileClip(audio_file_path)
-    audio_length = audio_clip.duration
-    video_clip = video_clip.subclip(0, audio_length)
-    return video_clip.set_audio(audio_clip)
-
-def save_merged_video(video_clip: VideoFileClip, output_name: str) -> None:
-    video_clip.write_videofile(f'{OUTPUT_PATH}/{output_name}.mp4')
-    video_clip.close()
-
-def synthesize_text(text, output_name):
-    client = texttospeech.TextToSpeechClient()
-
-    input_text = texttospeech.SynthesisInput(text=text)
-
-    voice = texttospeech.VoiceSelectionParams(
-        language_code="en-US",
-        name="en-US-Standard-E",
-        ssml_gender=texttospeech.SsmlVoiceGender.FEMALE,
-    )
-
-    audio_config = texttospeech.AudioConfig(
-        audio_encoding=texttospeech.AudioEncoding.MP3
-    )
-
-    response = client.synthesize_speech(
-        request={"input": input_text, "voice": voice, "audio_config": audio_config}
-    )
-
-    with open(f"{TEMP_PATH}/{output_name}.mp3", "wb") as out:
-        out.write(response.audio_content)
-
-def second_to_timecode(x: float) -> str:
-    hour, x = divmod(x, 3600)
-    minute, x = divmod(x, 60)
-    second, x = divmod(x, 1)
-    millisecond = int(x * 1000.)
-
-    return '%.2d:%.2d:%.2d,%.3d' % (hour, minute, second, millisecond)
-
-def to_srt(
-        words: Sequence[pvleopard.Leopard.Word],
-        endpoint_sec: float = 1.,
-        length_limit: Optional[int] = 1) -> str:
-    def _helper(end: int, ) -> None:
-        lines.append("%d" % section)
-        lines.append(
-            "%s --> %s" %
-            (
-                second_to_timecode(words[start].start_sec),
-                second_to_timecode(words[end].end_sec)
-            )
-        )
-        lines.append(' '.join(x.word for x in words[start:(end + 1)]))
-        lines.append('')
-
-    lines = list()
-    section = 0
-    start = 0
-    for k in range(1, len(words)):
-        if ((words[k].start_sec - words[k - 1].end_sec) >= endpoint_sec) or \
-                (length_limit is not None and (k - start) >= length_limit):
-            _helper(k - 1)
-            start = k
-            section += 1
-    _helper(len(words) - 1)
-    
-    return '\n'.join(lines)
-
-
-def clear_temp_dir():
-    for file in os.listdir(f'{TEMP_PATH}'):
-        os.remove(f'{TEMP_PATH}/{file}')
-
-
-def time_to_seconds(time_obj):
-    return time_obj.hours * 3600 + time_obj.minutes * 60 + time_obj.seconds + time_obj.milliseconds / 1000
-
-
-def create_subtitle_clips(subtitles, fontsize=60, font='ACNH', color='white', debug = False):
-    subtitle_clips = []
-
-    for subtitle in subtitles:
-        start_time = time_to_seconds(subtitle.start)
-        end_time = time_to_seconds(subtitle.end)
-        duration = end_time - start_time
-
-        text_clip = TextClip(subtitle.text, fontsize=fontsize, font=font, color=color, bg_color = 'none', method='caption',stroke_color='black', stroke_width=2, align='North').set_start(start_time).set_duration(duration)
-        subtitle_x_position = 'center'
-        subtitle_y_position = 1100
-
-        text_position = (subtitle_x_position, subtitle_y_position)                    
-        subtitle_clips.append(text_clip.set_position(text_position))
-    return subtitle_clips
-    
-
-def RedditScraperEngine(sub_reddit:str, num_videos_to_make: int, target_num: int, i: int, videos_created: list) -> None:
+def scrape_reddit(sub_reddits:str, num_videos_to_make: int, target_num: int, i: int, videos_created: list) -> None:
 
     target_num = target_num
     videos_created = videos_created
 
     if not videos_created:
-        #make list from csv
         with open('created_videos.csv', 'r') as file:
             reader = csv.reader(file)
             videos_created = reader.__next__()
 
-    posts = get_reddit_posts(f'{sub_reddit}', num_videos_to_make)
+    posts = get_reddit_posts(reddit, subreddits, 5)
 
     i = i
     for post in posts:
@@ -167,8 +65,8 @@ def RedditScraperEngine(sub_reddit:str, num_videos_to_make: int, target_num: int
                 if 'AITA' in post.title:
                     post.title = (post.title).replace('AITA', 'Am I the Asshole', 1)
 
-                synthesize_text(post.title, f'{output_name}-title')
-                synthesize_text(post.selftext, output_name)
+                synthesize_text(post.title, TEMP_PATH, f'{output_name}-title')
+                synthesize_text(post.selftext,TEMP_PATH, output_name)
 
                 audio_length = AudioFileClip(f'{TEMP_PATH}/{output_name}.mp3').duration
 
@@ -223,19 +121,19 @@ def RedditScraperEngine(sub_reddit:str, num_videos_to_make: int, target_num: int
     i+=1
 
     if (target_num != count):   
-        RedditScraperEngine(sub_reddit, count+i, target_num, i, videos_created)
+        scrape_reddit(subreddits, count+i, target_num, i, videos_created)
 
     with open('created_videos.csv', 'w') as file:
         writer = csv.writer(file)
         writer.writerow(videos_created)
 
     try:
-        clear_temp_dir()
+        clear_dir(TEMP_PATH)
     except OSError:
-        print('Could not clear temp.')
+        print('Could not clear directory.')
 
 
-#RedditScraperEngine(sub_reddit, count, 0, 0, [])
+scrape_reddit(subreddits, count, 0, 0, [])
 
 
 # **************** TKINTER WINDOW SETUP / TKINTER METHODS *********************
