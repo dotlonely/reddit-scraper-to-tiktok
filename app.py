@@ -2,25 +2,17 @@ from praw import Reddit
 from dotenv import load_dotenv
 import pandas as pd
 import os
-import pyaudio
 from pytube import YouTube
-from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip, concatenate_audioclips, videotools
-from time import sleep
+from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip, concatenate_audioclips
 import re
 import pvleopard
-from time import sleep
-from argparse import ArgumentParser
 from typing import *
 import pysrt
 import datetime
 import tkinter as tk
-import webbrowser
 from tkinter import scrolledtext as st
-from tiktok_uploader.upload import upload_video, upload_videos
-from tiktok_uploader.auth import AuthBackend
 from google.cloud import texttospeech
 from moviepy.config import change_settings
-import math
 import sys  
 import random 
 import csv
@@ -41,8 +33,8 @@ OUTPUT_PATH = os.getenv('OUTPUT_PATH')
 
 reddit = Reddit(client_id=CLIENT_ID, client_secret=CLIENT_SECRET, user_agent=USER_AGENT)
 
-#sub_reddit = sys.argv[1]
-#count = int(sys.argv[2])
+sub_reddit = sys.argv[1]
+count = int(sys.argv[2])
 
 
 class logger:
@@ -179,26 +171,29 @@ def create_subtitle_clips(subtitles, fontsize=60, font='ACNH', color='white', de
         text_position = (subtitle_x_position, subtitle_y_position)                    
         subtitle_clips.append(text_clip.set_position(text_position))
     return subtitle_clips
+    
 
-videosCreated = []
+def RedditScraperEngine(selectedSubReddit, sliderNum, videoCounter, j, videos_created):
 
-def RedditScraperEngine(selectedSubReddit, sliderNum):
+    videoCounter = videoCounter
 
-    #import csv
+    videos_created = videos_created
 
-    #make list from csv
+    if not videos_created:
+        #make list from csv
+        with open('created_videos.csv', 'r') as file:
+            reader = csv.reader(file)
+            videos_created = reader.__next__()
 
-
-    videoCounter = 0
     posts = get_reddit_posts(f'{selectedSubReddit}', sliderNum)
+    j = j
     for post in posts:
         if post.selftext and post.selftext != '' and len(post.selftext) <= 5000:
-            videoCounter = videoCounter + 1
             
             output_name = re.sub('[^A-Za-z0-9]+', '', {post.title}.__str__())
             
             #Check list
-            if f'{output_name}.mp4' not in os.listdir(f'{OUTPUT_PATH}'):
+            if output_name not in videos_created:
                 
                 if 'AITA' in post.title:
                     post.title = (post.title).replace('AITA', 'Am I the Asshole', 1)
@@ -221,14 +216,12 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
                 print(f'Video Length: {video_length} seconds.')
 
                 video_index = random.randint(0, len(os.listdir(f'{SAVE_PATH}')) - 1)
-                
+
                 i = 0
                 start_length = 0
                 while i < num_videos:
 
-                    #video_clip = VideoFileClip(f'{SAVE_PATH}/{os.listdir(f'{SAVE_PATH}')[video_index]}')
                     video_clip = VideoFileClip(f'{SAVE_PATH}/{os.listdir(SAVE_PATH)[video_index]}')
-    
                     sub_clip = AudioFileClip(f'{TEMP_PATH}/{output_name}.mp3').subclip(start_length - i, (video_length + start_length))
                     title_clip = AudioFileClip(f'{TEMP_PATH}/{output_name}-title.mp3')
                     
@@ -261,114 +254,114 @@ def RedditScraperEngine(selectedSubReddit, sliderNum):
                     #updateLogger(log.subVideoCreated)
                     #updateVideoCounter(videoCounter)
 
-
-
-                    if (videoCounter == 1):
-                        print(f'{videoCounter} VIDEO MADE')
-                    else:
-                        print(f'{videoCounter} VIDEOS MADE')
-                        
                     i += 1
+                    videos_created.append(output_name)
 
+                videoCounter += 1
                 #updateLogger(logger.mainVideoCreated)
-
-                videosCreated.append(output_name)
+            else:
+                print("Post already used")
         else:
             print('No Post Body or Post is too large.')
+
+    j+=1
+
+
+    if (videoCounter != count):   
+        RedditScraperEngine(sub_reddit, count+j, videoCounter, j, videos_created)
+
+    with open('created_videos.csv', 'w') as file:
+        writer = csv.writer(file)
+        writer.writerow(videos_created)
+
     try:
         clear_temp_dir()
     except OSError:
         print('Could not clear temp.')
 
-#append videosCreated to csv file / created file path env variable
-videosCSVFile = os.getenv('VIDEOS_CREATED_CSV_PATH')
 
-with open(videosCSVFile, 'w') as csvfile:
-    csvwriter = csv.writer(csvfile)
-    csvwriter.writerows(videosCreated)
-
-#RedditScraperEngine(sub_reddit, count)
+RedditScraperEngine(sub_reddit, count, 0, 0, [])
 
 
 # **************** TKINTER WINDOW SETUP / TKINTER METHODS *********************
-window = tk.Tk()
-window.title('Scraping Home')
-window.geometry('700x300')
+# window = tk.Tk()
+# window.title('Scraping Home')
+# window.geometry('700x300')
 
-leftFrameMain = tk.Frame(window)
-leftFrameMain.pack(side='left', fill='both')
+# leftFrameMain = tk.Frame(window)
+# leftFrameMain.pack(side='left', fill='both')
 
-rightFrameMain = tk.Frame(window)
-rightFrameMain.pack(side='right', fill='both')
+# rightFrameMain = tk.Frame(window)
+# rightFrameMain.pack(side='right', fill='both')
 
-bottomFramMain = tk.Frame(window)
-bottomFramMain.pack(side= 'bottom', fill='y')
+# bottomFramMain = tk.Frame(window)
+# bottomFramMain.pack(side= 'bottom', fill='y')
 
-videocounter = tk.Text(rightFrameMain, height=2, width=15, font=('arial 18'),)
-videocounter.pack()
+# videocounter = tk.Text(rightFrameMain, height=2, width=15, font=('arial 18'),)
+# videocounter.pack()
 
-appLogger = st.ScrolledText(rightFrameMain, height=8, width=100)
-appLogger.pack()
+# appLogger = st.ScrolledText(rightFrameMain, height=8, width=100)
+# appLogger.pack()
 
-def updateLogger(message : str):
-    appLogger.insert(tk.INSERT, message + '\n')
-    appLogger.update()
-    print(message)
+# def updateLogger(message : str):
+#     appLogger.insert(tk.INSERT, message + '\n')
+#     appLogger.update()
+#     print(message)
     
-def updateVideoCounter(numVids):
-    videocounter.delete("1.0", "end")
-    videocounter.insert('end', f'Videos created: {numVids}')
-    videocounter.update()
+# def updateVideoCounter(numVids):
+#     videocounter.delete("1.0", "end")
+#     videocounter.insert('end', f'Videos created: {numVids}')
+#     videocounter.update()
 
-def getWeb(url):
-    webbrowser.open_new(url)
+# def getWeb(url):
+#     webbrowser.open_new(url)
 
 
-gitLink = tk.Label(leftFrameMain, text='GitHub Repo', font='Helvetica 15 underline', fg='light blue')
-gitLink.pack()
-gitLink.bind("<Button-1>", lambda e:(getWeb('https://github.com/dotlonely/reddit-scraper-to-tiktok')))
+# gitLink = tk.Label(leftFrameMain, text='GitHub Repo', font='Helvetica 15 underline', fg='light blue')
+# gitLink.pack()
+# gitLink.bind("<Button-1>", lambda e:(getWeb('https://github.com/dotlonely/reddit-scraper-to-tiktok')))
 
-redditLink = tk.Label(leftFrameMain, text='Reddit Page', font='Helvetica 15 underline', fg='light blue')
-redditLink.pack()
-redditLink.bind("<Button-2>", lambda e:(getWeb('https://www.reddit.com')))
+# redditLink = tk.Label(leftFrameMain, text='Reddit Page', font='Helvetica 15 underline', fg='light blue')
+# redditLink.pack()
+# redditLink.bind("<Button-2>", lambda e:(getWeb('https://www.reddit.com')))
 
-def newScraperWindow():
-    redditScrapingWindow = tk.Toplevel(window)
-    redditScrapingWindow.title('Reddit Scraper')
-    redditScrapingWindow.geometry('600x300')
+# def newScraperWindow():
+#     redditScrapingWindow = tk.Toplevel(window)
+#     redditScrapingWindow.title('Reddit Scraper')
+#     redditScrapingWindow.geometry('600x300')
 
-    subRedditLabel = tk.Label(redditScrapingWindow,text='Choose SubReddit:',font=(14)).grid(row=0)
-    subReddits = [
-        'AmITheAsshole',
-        'Money',
-        'LegalAdvice',
-        'Scams'
-                ]
+#     subRedditLabel = tk.Label(redditScrapingWindow,text='Choose SubReddit:',font=(14)).grid(row=0)
+#     subReddits = [
+#         'AmITheAsshole',
+#         'Money',
+#         'LegalAdvice',
+#         'Scams'
+#                 ]
 
-    clicked = tk.StringVar() 
-    clicked.set( "AmITheAsshole") 
+#     clicked = tk.StringVar() 
+#     clicked.set( "AmITheAsshole") 
 
-    drop = tk.OptionMenu( redditScrapingWindow , clicked , *subReddits ) 
-    drop.grid(row=0,column=1)
-    drop.config(width=14)
+#     drop = tk.OptionMenu( redditScrapingWindow , clicked , *subReddits ) 
+#     drop.grid(row=0,column=1)
+#     drop.config(width=14)
 
-    redditPostNumSlider = tk.Scale(redditScrapingWindow, label='Number of Reddit posts to be scraped', orient='horizontal', length=400, width=45, from_=0, to=50, cursor='dot', activebackground='red') 
-    redditPostNumSlider.grid(row=20, column=0, columnspan=10)
+#     redditPostNumSlider = tk.Scale(redditScrapingWindow, label='Number of Reddit posts to be scraped', orient='horizontal', length=400, width=45, from_=0, to=50, cursor='dot', activebackground='red') 
+#     redditPostNumSlider.grid(row=20, column=0, columnspan=10)
     
-    vidCreateButton = tk.Button( redditScrapingWindow,command=(lambda:RedditScraperEngine(clicked.get(),redditPostNumSlider.get())), text="begin creating videos",height=1, width=15)
-    vidCreateButton.grid(row=0, column=10)
+#     vidCreateButton = tk.Button( redditScrapingWindow,command=(lambda:RedditScraperEngine(clicked.get(),redditPostNumSlider.get())), text="begin creating videos",height=1, width=15)
+#     vidCreateButton.grid(row=0, column=10)
 
 
-#menu bar
-mainMenu = tk.Menu(window)
-appMenu = tk.Menu(mainMenu, tearoff=0)
-appMenu.add_command(label='Reddit', command=newScraperWindow)
-appMenu.add_separator()
-appMenu.add_command(label='Quit', command=window.quit)
-mainMenu.add_cascade(label='Reddit', menu=appMenu)
-window.config(menu=mainMenu)
+# #menu bar
+# mainMenu = tk.Menu(window)
+# appMenu = tk.Menu(mainMenu, tearoff=0)
+# appMenu.add_command(label='Reddit', command=newScraperWindow)
+# appMenu.add_separator()
+# appMenu.add_command(label='Quit', command=window.quit)
+# mainMenu.add_cascade(label='Reddit', menu=appMenu)
+# window.config(menu=mainMenu)
 
 
-window.mainloop()
+# window.mainloop()
 
 # ********************************* END OF WINDOW SETUP ***********************************************
