@@ -31,7 +31,6 @@ protobuf==4.25.1
 pvleopard==2.0.1
 pyasn1==0.5.1
 pyasn1-modules==0.3.0
-PyAudio==0.2.14
 pycparser==2.21
 pypiwin32==223; sys_platform == 'win32'
 PySocks==1.7.1
